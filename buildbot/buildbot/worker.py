@@ -225,9 +225,11 @@ def stage_seashell(db, config):
             # *.cpp file not named "main".
             for name in os.listdir(task.code_dir):
                 base, ext = os.path.splitext(name)
-                if ext == C_EXT and base != 'main':
+                #if ext == C_EXT and base != 'main':
+                if ext == C_EXT and base.find('hw'):
                     c_name = name
                     break
+                #task['hw_basename'] = base
             else:
                 raise WorkError(
                     'No hardware source file found. Expected a file with '
