@@ -230,11 +230,11 @@ def stage_seashell(db, config):
                     c_name = name
                     task['hw_basename'] = base
                     break
-                else:
-                    raise WorkError(
-                        'No hardware source file found. Expected a file with '
-                        'extension {} and basename not `main`.'.format(C_EXT)
-                    )
+            else:
+                raise WorkError(
+                    'No hardware source file found. Expected a file with '
+                    'extension {} and basename starting from `hw_`.'.format(C_EXT)
+                )
 
             task.log('skipping Fuse compilation stage')
             #task['hw_basename'] = base
