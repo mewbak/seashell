@@ -52,5 +52,5 @@ LOG_PREVIEW_LINES = 32
 # The timeouts for running the initial compilation step and for running
 # the synthesis step (or running an opaque Makefile), the latter of
 # which has to be really long because synthesis is so slow.
-COMPILE_TIMEOUT = 120
+COMPILE_TIMEOUT = 300
 SYNTHESIS_TIMEOUT = 3000
