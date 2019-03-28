@@ -226,10 +226,10 @@ def stage_seashell(db, config):
             for name in os.listdir(task.code_dir):
                 base, ext = os.path.splitext(name)
                 #if ext == C_EXT and base != 'main':
-                if ext == C_EXT and base.find('hw'):
+                if ext == C_EXT and base.find('hw') == 0:
                     c_name = name
+                    task['hw_basename'] = base
                     break
-                #task['hw_basename'] = base
             else:
                 raise WorkError(
                     'No hardware source file found. Expected a file with '
@@ -237,7 +237,7 @@ def stage_seashell(db, config):
                 )
 
             task.log('skipping Fuse compilation stage')
-            task['hw_basename'] = base
+            #task['hw_basename'] = base
             return
 
         # Look for the Seashell source code.
