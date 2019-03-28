@@ -218,58 +218,67 @@ def stage_seashell(db, config):
     compiler = config["SEASHELL_COMPILER"]
     with work(db, state.UNPACK_FINISH, state.COMPILE,
               state.COMPILE_FINISH) as task:
+        sw_srcs = []
         if task['config'].get('skipseashell'):
             # Skip the Seashell stage. Instead, just try to guess which
             # file contains the hardware function. For now, this
             # guessing is very unintelligent: it just looks for some
             # *.cpp file not named "main".
+            hw_srcs = []
             for name in os.listdir(task.code_dir):
                 base, ext = os.path.splitext(name)
-                #if ext == C_EXT and base != 'main':
                 if ext == C_EXT and base.find('hw') == 0:
-                    c_name = name
-                    task['hw_basename'] = base
-                    break
+                    hw_srcs.append(base)
+                elif ext == C_EXT and base != 'main':
+                    sw_srcs.append(base)
+
             else:
                 raise WorkError(
                     'No hardware source file found. Expected a file with '
                     'extension {} and basename starting from `hw_`.'.format(C_EXT)
-                )
+                ) # Not sure whether the if is tracking this error any longer?
 
-            task.log('skipping Fuse compilation stage')
-            #task['hw_basename'] = base
+            task['hw_basename'] = hw_srcs
+            task['sw_basename'] = sw_srcs
+            task.log('skipping fuse compilation stage')
             return
 
         # Look for the Seashell source code.
-        for name in os.listdir(task.code_dir):
-            _, ext = os.path.splitext(name)
-            if ext == SEASHELL_EXT:
-                source_name = name
-                break
         else:
-            raise WorkError('No Fuse source file found. Expected a file '
-                            'with extension {}'.format(SEASHELL_EXT))
-        task['seashell_main'] = name
+            for name in os.listdir(task.code_dir):
+                _, ext = os.path.splitext(name)
+                if ext == SEASHELL_EXT:
+                    source_name = name
+                    break
+            else:
+                raise WorkError('No fuse source file found. Expected a file '
+                                'with extension {}'.format(SEASHELL_EXT))
+            task['seashell_main'] = name
 
-        # Run the Seashell compiler.
-        source_path = os.path.join(task.code_dir, source_name)
-        hls_code = task.run([compiler, source_path], capture=True).stdout
+            # Run the Seashell compiler.
+            source_path = os.path.join(task.code_dir, source_name)
+            hls_code = task.run([compiler, source_path], capture=True).stdout
 
-        # A filename for the translated C code.
-        base, _ = os.path.splitext(source_name)
-        c_name = base + C_EXT
-        task['hw_basename'] = base
+            # A filename for the translated C code.
+            base, _ = os.path.splitext(source_name)
+            c_name = base + C_EXT
+            task['hw_basename'] = base
 
-        # Write the C code.
-        with open(os.path.join(task.code_dir, c_name), 'wb') as f:
-            f.write(hls_code)
+            # Write the C code.
+            with open(os.path.join(task.code_dir, c_name), 'wb') as f:
+                f.write(hls_code)
 
 
 def _sds_cmd(task, config):
     """Make a sds++ command with all our standard arguments.
     """
     prefix = config["HLS_COMMAND_PREFIX"]
-    func_hw, c_hw, o_hw = _hw_filenames(task)
+    hw_bs, hw_cs, hw_os = _hw_filenames(task['hw_basename'])
+    hw_string = []
+    for hw_b, hw_c in zip(hw_bs, hw_cs):
+        hw_string.append(hw_b)
+        hw_string.append(hw_c)
+    
     flags = ''
     clock = '3'
     poll  = '1'
@@ -294,19 +303,26 @@ def _sds_cmd(task, config):
     return prefix + [
         'sds++',
         '-sds-pf', target,
-        '-sds-hw', func_hw, c_hw, '-sds-end',
+        '-sds-hw', " ".join(hw_string), '-sds-end',
         '-clkid', clock,
         '-poll-mode', poll,
         flags, '-Wall', '-O3',
     ]
 
 
-def _hw_filenames(task):
+def _hw_filenames(name_array):
     """For a given task, get its hardware source file's basename, C
     filename, and object filename.
     """
-    hw_basename = task['hw_basename']
-    return hw_basename, hw_basename + C_EXT, hw_basename + OBJ_EXT
+    hw_b = []
+    hw_c = []
+    hw_o = []
+    for name in name_array
+        hw_b.append(name)
+        hw_c.append(name + C_EXT)
+        hw_o.append(name + OBJ_EXT)
+    
+    return hw_b, hw_c, hw_o
 
 
 def stage_hls(db, config):
@@ -315,18 +331,33 @@ def stage_hls(db, config):
     """
     prefix = config["HLS_COMMAND_PREFIX"]
     with work(db, state.COMPILE_FINISH, state.HLS, state.HLS_FINISH) as task:
-        hw_basename, hw_c, hw_o = _hw_filenames(task)
-        xflags = ''
+        hw_bs, hw_cs, hw_os = _hw_filenames(task['hw_basename'])
+        hw_o_string = " ,".join(hw_os)
 
         # Run Xilinx SDSoC compiler for hardware functions.
-        task.run(
-            _sds_cmd(task, config) + [
-                '-c',
-                hw_c, '-o', hw_o,
-            ],
-            timeout=config["COMPILE_TIMEOUT"],
-            cwd=CODE_DIR,
-        )
+        for hw_c, hw_o in zip(hw_cs, hw_os):
+            task.run(
+                _sds_cmd(task, config) + [
+                    '-c',
+                    hw_c, '-o', hw_o,
+                ],
+                timeout=config["COMPILE_TIMEOUT"],
+                cwd=CODE_DIR,
+            )
+        
+        sw_bs, sw_cs, sw_os = _hw_filenames(task['sw_basename'])
+        sw_o_string = " ,".join(sw_os)
+
+        # Run Xilinx SDSoC compiler for software functions.
+        for sw_c, sw_o in zip(sw_cs, sw_os):
+            task.run(
+                _sds_cmd(task, config) + [
+                    '-c',
+                    sw_c, '-o', sw_o,
+                ],
+                timeout=config["COMPILE_TIMEOUT"],
+                cwd=CODE_DIR,
+            )
 
         # Run the Xilinx SDSoC compiler for host function.
         task.run(
@@ -337,13 +368,14 @@ def stage_hls(db, config):
             cwd=CODE_DIR,
         )
 
+        xflags = ''
         if task['config'].get('estimate'):
             xflags = '-perf-est-hw-only'
 
         # Run Xilinx SDSoC compiler for created objects.
         task.run(
             _sds_cmd(task, config) + [
-                xflags, hw_o, HOST_O, '-o', EXECUTABLE,
+                xflags, hw_o_string, sw_o_string, HOST_O, '-o', EXECUTABLE,
             ],
             timeout=config["SYNTHESIS_TIMEOUT"],
             cwd=CODE_DIR,
