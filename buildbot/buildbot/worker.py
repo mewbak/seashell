@@ -263,16 +263,34 @@ def stage_seashell(db, config):
             f.write(hls_code)
 
 
-def _sds_cmd(prefix, func_hw, c_hw):
+def _sds_cmd(task, config):
     """Make a sds++ command with all our standard arguments.
     """
+    prefix = config["HLS_COMMAND_PREFIX"]
+    func_hw, c_hw, o_hw = _hw_filenames(task)
+    flags = ''
+    clock = '3'
+    poll  = '1'
+
+    if task['config'].get('verbose'):
+        flags = flags + '-verbose'
+    
+    if task['config'].get('clock'):
+        clock = task['config'].get('clock')
+    
+    if task['config'].get('poll-mode'):
+        poll = task['config'].get('poll-mode')
+    
+    if task['config'].get('time'):
+        flags = flags + '-instrument-stub'
+    
     return prefix + [
         'sds++',
         '-sds-pf', SDS_PLATFORM,
         '-sds-hw', func_hw, c_hw, '-sds-end',
-        '-clkid', '3',
-        '-poll-mode', '1',
-        '-verbose', '-Wall', '-O3',
+        '-clkid', clock,
+        '-poll-mode', poll,
+        flags, '-Wall', '-O3',
     ]
 
 
@@ -295,7 +313,7 @@ def stage_hls(db, config):
 
         # Run Xilinx SDSoC compiler for hardware functions.
         task.run(
-            _sds_cmd(prefix, hw_basename, hw_c) + [
+            _sds_cmd(task, config) + [
                 '-c',
                 hw_c, '-o', hw_o,
             ],
@@ -305,7 +323,7 @@ def stage_hls(db, config):
 
         # Run the Xilinx SDSoC compiler for host function.
         task.run(
-            _sds_cmd(prefix, hw_basename, hw_c) + [
+            _sds_cmd(task, config) + [
                 '-c',
                 C_MAIN, '-o', HOST_O,
             ],
@@ -317,7 +335,7 @@ def stage_hls(db, config):
 
         # Run Xilinx SDSoC compiler for created objects.
         task.run(
-            _sds_cmd(prefix, hw_basename, hw_c) + [
+            _sds_cmd(task, config) + [
                 xflags, hw_o, HOST_O, '-o', EXECUTABLE,
             ],
             timeout=config["SYNTHESIS_TIMEOUT"],
