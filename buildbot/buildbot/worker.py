@@ -273,6 +273,7 @@ def _sds_cmd(task, config):
     flags = ''
     clock = '3'
     poll  = '1'
+    target = SDS_PLATFORM
 
     if task['config'].get('verbose'):
         flags = flags + ' ' + '-verbose'
@@ -286,9 +287,13 @@ def _sds_cmd(task, config):
     if task['config'].get('time'):
         flags = flags + ' ' + '-instrument-stub'
     # multiple flags are not as intended, they endup as '-f1 -f2' than -f1 -f2, but it still works 
+    
+    if task['config'].get('hw_target'):
+        clock = task['config'].get('hw_target_val')
+    
     return prefix + [
         'sds++',
-        '-sds-pf', SDS_PLATFORM,
+        '-sds-pf', target,
         '-sds-hw', func_hw, c_hw, '-sds-end',
         '-clkid', clock,
         '-poll-mode', poll,
