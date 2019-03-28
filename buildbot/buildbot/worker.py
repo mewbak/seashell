@@ -278,10 +278,10 @@ def _sds_cmd(task, config):
         flags = flags + ' ' + '-verbose'
     
     if task['config'].get('clock'):
-        clock = task['config'].get('clock')
+        clock = task['config'].get('clock_val')
     
     if task['config'].get('poll-mode'):
-        poll = task['config'].get('poll-mode')
+        poll = task['config'].get('poll-mode_val')
     
     if task['config'].get('time'):
         flags = flags + ' ' + '-instrument-stub'
