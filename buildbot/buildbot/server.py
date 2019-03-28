@@ -104,6 +104,9 @@ def get_config(values):
     config = {}
     for key in app.config['CONFIG_OPTIONS']:
         config[key] = bool(values.get(key))
+    for key in app.config['CONFIG_ARGS']:
+        config[key] = bool(values.get(key))
+        config[key + '_val'] = str(values.get(key))
     return config
 
 

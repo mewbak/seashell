@@ -34,10 +34,16 @@ CONFIG_OPTIONS = [
     'skipseashell',
     'estimate',
     'make',
-    'clock',
-    'poll-mode',
     'time',
     'verbose',
+]
+
+CONFIG_ARGS = [
+    'clock',
+    'poll-mode',
+    'hw_src',
+    'hw_id',
+    'hw_target',
 ]
 
 # The number of (recent) lines of the log to show on job pages.
