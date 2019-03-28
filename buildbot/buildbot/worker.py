@@ -232,7 +232,7 @@ def stage_seashell(db, config):
                 elif ext == C_EXT and base != 'main':
                     sw_srcs.append(base)
 
-            else:
+            if not hw_srcs:
                 raise WorkError(
                     'No hardware source file found. Expected a file with '
                     'extension {} and basename starting from `hw_`.'.format(C_EXT)
@@ -276,8 +276,7 @@ def _sds_cmd(task, config):
     hw_bs, hw_cs, hw_os = _hw_filenames(task['hw_basename'])
     hw_string = []
     for hw_b, hw_c in zip(hw_bs, hw_cs):
-        hw_string.append(hw_b)
-        hw_string.append(hw_c)
+        hw_string.append(' -sds-hw ' + hw_b + ' ' + hw_c + ' -sds-end ')
     
     flags = ''
     clock = '3'
@@ -303,7 +302,7 @@ def _sds_cmd(task, config):
     return prefix + [
         'sds++',
         '-sds-pf', target,
-        '-sds-hw', " ".join(hw_string), '-sds-end',
+        hw_string,
         '-clkid', clock,
         '-poll-mode', poll,
         flags, '-Wall', '-O3',
@@ -317,7 +316,7 @@ def _hw_filenames(name_array):
     hw_b = []
     hw_c = []
     hw_o = []
-    for name in name_array
+    for name in name_array:
         hw_b.append(name)
         hw_c.append(name + C_EXT)
         hw_o.append(name + OBJ_EXT)
@@ -336,6 +335,13 @@ def stage_hls(db, config):
 
         # Run Xilinx SDSoC compiler for hardware functions.
         for hw_c, hw_o in zip(hw_cs, hw_os):
+            task.run(
+                _sds_cmd(task, config) + [
+                    '-c',
+                    hw_c, '-o', hw_o,
+                ],
+            )
+            
             task.run(
                 _sds_cmd(task, config) + [
                     '-c',
