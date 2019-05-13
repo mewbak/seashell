@@ -1,13 +1,13 @@
 package fuselang.backend
 
-import fuselang.CompilerError.BackendError
+import fuselang.common.CompilerError.BackendError
 
 /**
  * Abstract definition of a Fuse backend.
  */
 trait Backend {
 
-  def emit(p: fuselang.Syntax.Prog, c: fuselang.Utils.Config): String = {
+  def emit(p: fuselang.common.Syntax.Prog, c: fuselang.Utils.Config): String = {
     if (c.header && (canGenerateHeader == false)) {
       throw BackendError(s"Backend $this does not support header generation.")
     }
@@ -19,7 +19,7 @@ trait Backend {
    * program. Assumes that typechecking pass has been done on the AST and
    * might use the type decorations added to the nodes.
    */
-  def emitProg(p: fuselang.Syntax.Prog, c: fuselang.Utils.Config): String
+  def emitProg(p: fuselang.common.Syntax.Prog, c: fuselang.Utils.Config): String
 
   /**
    * True if the backend can generate header files.

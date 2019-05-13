@@ -2,6 +2,12 @@ package fuselang
 
 import scala.util.{Try, Success, Failure}
 import java.nio.file.Path
+
+import common.{Errors, CompilerError}
+
+import typechecker.TypeChecker
+import passes.{BoundsChecker, RewriteView}
+
 import Utils._
 
 object Compiler {

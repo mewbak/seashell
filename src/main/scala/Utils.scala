@@ -5,6 +5,8 @@ import scribe.Level
 
 import backend.{VivadoBackend, CppRunnable, Backend}
 
+import common.CompilerError
+
 object Utils {
 
   sealed trait Mode

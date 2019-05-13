@@ -1,4 +1,4 @@
-package fuselang
+package fuselang.common
 
 object Errors {
   import Syntax._

@@ -1,10 +1,10 @@
-package fuselang
+package fuselang.common
 
 import scala.util.parsing.input.{Positional, Position}
 
-object Syntax {
+import Errors._
 
-  import Errors._
+object Syntax {
 
   case class Id(v: String) extends Positional {
     var typ: Option[Type] = None;

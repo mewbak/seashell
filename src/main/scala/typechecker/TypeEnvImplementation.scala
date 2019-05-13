@@ -1,14 +1,17 @@
-package fuselang
+package fuselang.typechecker
 
 import scala.util.parsing.input.Position
 
 import TypeInfo._
 import ScopeMap._
+import TypeEnv.Environment
+
+import fuselang.common._
 import Syntax._
 import Errors._
 import CompilerError._
-import Utils.RichOption
-import TypeEnv.Environment
+
+import fuselang.Utils.RichOption
 
 object TypeEnvImplementation {
 

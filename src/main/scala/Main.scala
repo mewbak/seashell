@@ -3,6 +3,8 @@ package fuselang
 import java.nio.file.{Files, Path}
 import java.io.File
 
+import common.Logger
+
 import Utils._
 import Compiler._
 

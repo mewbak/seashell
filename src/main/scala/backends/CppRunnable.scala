@@ -1,10 +1,12 @@
 package fuselang.backend
 
-import fuselang.Syntax._
-import fuselang.Utils._
-import fuselang.CompilerError._
-
 import Cpp._
+
+import fuselang.common._
+import Syntax._
+import CompilerError._
+
+import fuselang.Utils._
 
 /**
  * Same as [[fuselang.backend.VivadoBackend]] except this creates a main

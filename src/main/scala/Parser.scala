@@ -2,7 +2,8 @@ package fuselang
 
 import scala.util.parsing.combinator._
 
-import Syntax._
+import common.Syntax._
+import common.Errors.ParserError
 
 private class FuseParser extends RegexParsers with PackratParsers {
   type P[T] = PackratParser[T]
@@ -278,7 +279,7 @@ object FuseParser {
 
   def parse(str: String): Prog = parseAll(prog, str) match {
     case Success(res, _) => res
-    case res => throw Errors.ParserError(s"$res")
+    case res => throw ParserError(s"$res")
   }
 }
 

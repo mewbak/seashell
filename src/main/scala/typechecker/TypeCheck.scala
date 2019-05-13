@@ -1,15 +1,18 @@
-package fuselang
+package fuselang.typechecker
 
 import scala.util.parsing.input.Position
 
-import Syntax._
-import Errors._
-import CompilerError._
 import Subtyping._
 import TypeEnv._
 import TypeEnvImplementation._
-import Utils.RichOption
+
+import fuselang.common._
+import Syntax._
+import Errors._
+import CompilerError._
 import Logger.PositionalLoggable
+
+import fuselang.Utils.RichOption
 
 /**
  * Type checker implementation for Fuse. Apart from normal typechecking, such as

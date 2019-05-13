@@ -1,6 +1,8 @@
-package fuselang
+package fuselang.typechecker
 
 import scala.math.{max,log10,ceil}
+
+import fuselang.common._
 import Syntax._
 
 /**
