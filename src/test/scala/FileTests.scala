@@ -4,6 +4,7 @@ import java.nio.file.{Files, Paths}
 import collection.JavaConverters._
 
 import org.scalatest.FunSuite
+import fuselang.common._
 
 class FileTypePositive extends FunSuite {
 

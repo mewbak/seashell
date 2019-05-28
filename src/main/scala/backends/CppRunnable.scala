@@ -6,8 +6,6 @@ import fuselang.common._
 import Syntax._
 import CompilerError._
 
-import fuselang.Utils._
-
 /**
  * Same as [[fuselang.backend.VivadoBackend]] except this creates a main
  * method that that parses input data to the kernel and includes the

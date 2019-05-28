@@ -6,8 +6,6 @@ import fuselang.common._
 import Syntax._
 import CompilerError._
 
-import fuselang.Utils._
-
 private class VivadoBackend extends CppLike {
 
   def unroll(n: Int): Doc = n match {
@@ -59,7 +57,7 @@ private class VivadoBackend extends CppLike {
     case TAlias(n) => n
   }
 
-  def emitProg(p: Prog, c: fuselang.Utils.Config): String = {
+  def emitProg(p: Prog, c: fuselang.common.Config): String = {
     val layout =
       vsep(p.includes.map(emitInclude)) <@>
       vsep(p.defs.map(emitDef)) <@>

@@ -12,12 +12,12 @@ import Utils._
 
 object Compiler {
 
-  def compileStringWithError(prog: String, c: Config = emptyConf ) = {
+  def compileStringWithError(prog: String, c: CmdConfig = emptyConf) = {
     val ast = FuseParser.parse(prog)
     TypeChecker.typeCheck(ast)
     BoundsChecker.check(ast);
     val rast = RewriteView.rewriteProg(ast)
-    c.backend.emit(rast, c)
+    c.backend.emit(rast, c.toCommonConfig())
   }
 
   // Outputs red text to the console
@@ -25,7 +25,7 @@ object Compiler {
     Console.RED + txt + Console.RESET
   }
 
-  def compileString(prog: String, c: Config): Either[String, String] = Try {
+  def compileString(prog: String, c: CmdConfig): Either[String, String] = Try {
     compileStringWithError(prog, c)
   } match {
     case Success(out) => Right(out)
@@ -41,7 +41,7 @@ object Compiler {
     case Failure(f) => Left(f.getMessage)
   }
 
-  def compileStringToFile(prog: String, c: Config, out: String): Either[String, Path] = {
+  def compileStringToFile(prog: String, c: CmdConfig, out: String): Either[String, Path] = {
     import java.nio.file.{Files, Paths, StandardOpenOption}
 
     compileString(prog, c).map(p => {
