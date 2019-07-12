@@ -153,9 +153,12 @@ def _task_config(task, config):
         est = 1
     task['sdsflags'] = flags
     task['estimate'] = est
-
     task['platform'] = task['config'].get('platform') or \
         config['DEFAULT_PLATFORM']
+    task['device'] = task['config'].get('device') or \
+        config['DEFAULT_DEVICE']
+    task['target'] = task['config'].get('target') or \
+        config['DEFAULT_TARGET']
 
 
 class WorkThread(threading.Thread):
@@ -217,22 +220,12 @@ def stage_make(db, config):
     with work(db, state.MAKE, state.MAKE_PROGRESS, state.HLS_FINISH) as task:
         _task_config(task, config)
 
-        if task['sdsflags']:
-            task.log('WARNING: make stage is ignoring sdsflags={}'.format(
-                task['sdsflags']
-            ))
-
         make_cmd = prefix + [
                 'make',
-                'ESTIMATE={}'.format(task['estimate']),
-                'PLATFORM={}'.format(task['platform']),
-                'TARGET={}'.format(config['EXECUTABLE_NAME']),
+                'TARGET={}'.format(task['target']),
+                'PLATFORM={}'.format(task['platform'])
             ]
-        if task['config']['directives']:
-            make_cmd.append(
-                'DIRECTIVES={}'.format(task['config']['directives'])
-            )
-
+       
         task.run(
             make_cmd,
             timeout=config["SYNTHESIS_TIMEOUT"],
