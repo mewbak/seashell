@@ -1,3 +1,0 @@
-def merge (a: bit<32>[2048], start: bit<16>, m: bit<16>, stop: bit<16>){
-    
-}
