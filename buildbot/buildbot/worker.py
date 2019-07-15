@@ -222,11 +222,11 @@ def stage_make(db, config):
 
         # aws_platform = task.run(["sh", "-c", 'cd $AWS_FPGA_REPO_DIR ; source setup_script.sh ; echo $AWS_PLATFORM'], capture_output=True)
         # print(aws_platform)
-        
-        proc = subprocess.Popen(["sh", "-c", 'cd $AWS_FPGA_REPO_DIR ; source setup_script.sh ; echo $AWS_PLATFORM'], stdout=subprocess.PIPE, shell=True)
-        (aws_platform, err) = proc.communicate()
-        
-        
+
+        aws_platform = subprocess.Popen(cmd,
+                     stdout=subprocess.PIPE,
+                     stderr=subprocess.STDOUT)
+     
         make_cmd = prefix + [
             'make',
             'TARGET={}'.format(task['target']),
