@@ -39,6 +39,8 @@ CONFIG_OPTIONS = {
     'hwname': str,
     'sdsflags': str,
     'platform': str,
+    'target':str,
+    'device':str
 }
 
 # The name to use for compiled executables.
@@ -55,3 +57,7 @@ SYNTHESIS_TIMEOUT = 3000
 
 # Default Xilinx target platform.
 DEFAULT_PLATFORM = 'zed'
+
+DEFAULT_DEVICE  = '$AWS_PLATFORM'
+
+DEFAULT_TARGET = 'sw_emu'
