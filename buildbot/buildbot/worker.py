@@ -221,7 +221,7 @@ def stage_make(db, config):
     with work(db, state.MAKE, state.MAKE_PROGRESS, state.HLS_FINISH) as task:
         _task_config(task, config)
      
-        task.run(["sh", "-c", 'cd $AWS_FPGA_REPO_DIR ; source setup_script.sh'])
+        task.run(["sh", "-c", 'cd $AWS_FPGA_REPO_DIR ; source sdaccel_setup.sh'])
         aws_platform = task.run(['echo $AWS_PLATFORM'], stdout=PIPE, stderr=PIPE)
         print(aws_platform)
      
