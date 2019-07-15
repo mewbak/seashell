@@ -220,7 +220,7 @@ def stage_make(db, config):
     with work(db, state.MAKE, state.MAKE_PROGRESS, state.HLS_FINISH) as task:
         _task_config(task, config)
 
-        aws_platform = task.run(["sh", "-c", 'cd $AWS_FPGA_REPO_DIR ; source setup_script.sh ; echo $AWS_PLATFORM'], capture_stdout=True)
+        aws_platform = task.run(["sh", "-c", 'cd $AWS_FPGA_REPO_DIR ; source setup_script.sh ; echo $AWS_PLATFORM'], capture_output=True)
         print(aws_platform)
 
         
@@ -229,7 +229,7 @@ def stage_make(db, config):
             'TARGET={}'.format(task['target']),
             'DEVICE={}'.format(aws_platform),
             ]
-            
+
         task.run(
             make_cmd,
             timeout=config["SYNTHESIS_TIMEOUT"],
