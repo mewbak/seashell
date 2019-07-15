@@ -7,6 +7,7 @@ import traceback
 import shlex
 import time
 from . import state
+from subprocess import PIPE
 
 SEASHELL_EXT = '.fuse'
 C_EXT = '.cpp'
@@ -219,8 +220,9 @@ def stage_make(db, config):
     prefix = config["HLS_COMMAND_PREFIX"]
     with work(db, state.MAKE, state.MAKE_PROGRESS, state.HLS_FINISH) as task:
         _task_config(task, config)
-
-        aws_platform = task.run(["sh", "-c", 'cd $AWS_FPGA_REPO_DIR ; source setup_script.sh ; echo $AWS_PLATFORM'], stdout=PIPE, stderr=PIPE)
+     
+        task.run(["sh", "-c", 'cd $AWS_FPGA_REPO_DIR ; source setup_script.sh'])
+        aws_platform = task.run(['echo $AWS_PLATFORM'], stdout=PIPE, stderr=PIPE)
         print(aws_platform)
      
         make_cmd = prefix + [
