@@ -223,7 +223,7 @@ def stage_make(db, config):
         make_cmd = prefix + [
                 'make',
                 'TARGET={}'.format(task['target']),
-                'PLATFORM={}'.format(task['platform'])
+                'DEVICES={}'.format(task['device'])
             ]
        
         task.run(
