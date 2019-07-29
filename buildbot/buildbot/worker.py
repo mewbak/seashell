@@ -7,7 +7,8 @@ import traceback
 import shlex
 import time
 from . import state
-from subprocess import PIPE
+from .config_default import TOOLCHAIN
+import json
 
 SEASHELL_EXT = '.fuse'
 C_EXT = '.cpp'
@@ -26,6 +27,7 @@ class WorkError(Exception):
     """An error that occurs in a worker that needs to be displayed in
     the log.
     """
+
     def __init__(self, message):
         self.message = message
 
@@ -34,9 +36,9 @@ class JobTask:
     """A temporary acquisition of a job used to do a single unit of work
     on its behalf. Also, a container for lots of convenience methods for
     doing stuff with the job.
-
     Subscripting a task accesses the underlying job dict.
     """
+
     def __init__(self, db, job):
         self.db = db
         self.job = job
@@ -71,12 +73,10 @@ class JobTask:
 
     def run(self, cmd, capture=False, timeout=60, cwd='', **kwargs):
         """Run a command and log its output.
-
         Return an exited process object. If `capture`, then  the
         standard output is *not* logged and is instead available as the return
         value's `stdout` field. Additional arguments are forwarded to
         `subprocess.run`.
-
         Raise an appropriate `WorkError` if the command fails.
         """
         full_cwd = os.path.normpath(os.path.join(self.dir, cwd))
@@ -117,7 +117,7 @@ def work(db, old_state, temp_state, done_state_or_func):
     """
     done_func = None
     if isinstance(done_state_or_func, str):
-        done_func = lambda _: done_state_or_func  # noqa
+        def done_func(_): return done_state_or_func  # noqa
     else:
         done_func = done_state_or_func
 
@@ -154,10 +154,9 @@ def _task_config(task, config):
         est = 1
     task['sdsflags'] = flags
     task['estimate'] = est
+
     task['platform'] = task['config'].get('platform') or \
         config['DEFAULT_PLATFORM']
-    task['device'] = task['config'].get('device') or \
-        config['DEFAULT_DEVICE']
     task['target'] = task['config'].get('target') or \
         config['DEFAULT_TARGET']
 
@@ -165,7 +164,6 @@ def _task_config(task, config):
 class WorkThread(threading.Thread):
     """A base class for all our worker threads, which run indefinitely
     to process tasks in an appropriate state.
-
     The thread takes the database and configuration dictionaries as well
     as a function to which these will be passed. When the thread runs,
     the function is invoked repeatedly, indefinitely.
@@ -189,6 +187,13 @@ def should_make(task):
         return state.MAKE
     else:
         return state.UNPACK_FINISH
+
+
+def stage_after_make(task):
+    if TOOLCHAIN == 'f1' and task['target'] == 'hw':
+        return state.AFI_START
+    else:
+        return state.HLS_FINISH
 
 
 def stage_unpack(db, config):
@@ -218,19 +223,39 @@ def stage_make(db, config):
     generated.
     """
     prefix = config["HLS_COMMAND_PREFIX"]
-    with work(db, state.MAKE, state.MAKE_PROGRESS, state.HLS_FINISH) as task:
+    with work(db, state.MAKE, state.MAKE_PROGRESS, stage_after_make) as task:
         _task_config(task, config)
-     
-      #  task.run(["sh", "-c", 'cd $AWS_FPGA_REPO_DIR ; source sdaccel_setup.sh'])
-        proc = task.run(["sh", "-c", 'cd $AWS_FPGA_REPO_DIR ; source ./sdaccel_setup.sh > /dev/null ; echo $AWS_PLATFORM'], capture=True)
-        aws_platform = proc.stdout.decode('utf8').strip()
-        print(aws_platform)
-     
-        make_cmd = prefix + [
-            'make',
-            'TARGET={}'.format(task['target']),
-            'DEVICE={}'.format(aws_platform),
+
+        if task['sdsflags']:
+            task.log('WARNING: make stage is ignoring sdsflags={}'.format(
+                task['sdsflags']
+            ))
+        # if toochain set to f1, use different make command.
+        if (TOOLCHAIN == 'f1'):
+            proc = task.run(
+                ["sh", "-c", 'cd $AWS_FPGA_REPO_DIR ; \
+            source ./sdaccel_setup.sh > /dev/null ; \
+            echo $AWS_PLATFORM'],
+                capture=True)
+            aws_platform = proc.stdout.decode('utf8').strip()
+            make = [
+                'make',
+                'TARGET={}'.format(task['target']),
+                'DEVICE={}'.format(aws_platform),
             ]
+        else:
+            make = [
+                'make',
+                'ESTIMATE={}'.format(task['estimate']),
+                'PLATFORM={}'.format(task['platform']),
+                'TARGET={}'.format(config['EXECUTABLE_NAME']),
+            ]
+
+        make_cmd = prefix + make
+        if task['config']['directives']:
+            make_cmd.append(
+                'DIRECTIVES={}'.format(task['config']['directives'])
+            )
 
         task.run(
             make_cmd,
@@ -374,10 +399,66 @@ def stage_hls(db, config):
             )
 
 
+def stage_afi(db, config):
+    """AFI stage: Create the AWS FPGA binary and AFI from the *.xclbin 
+    (Xilinx FPGA binary file)
+    """
+    with work(db, state.AFI_START, state.AFI, state.HLS_FINISH) as task:
+        # clean all the generated files from previous runs.
+        task.run(
+            ['sh', '-c', 'cd xclbin; \
+              rm -rf to_aws; rm -rf *afi_id.txt;\
+              rm -rf *.tar; rm -rf *afgi_id.txt'],
+            cwd=CODE_DIR
+        )
+        # find the hw synthesis xclbin file.
+        xclbin_file_path = task.run(
+            ['sh', '-c', 'find ./xclbin  -type f -iname "*hw\.*.xclbin"'],
+            cwd=CODE_DIR,
+            capture=True
+        )
+        xclbin_file = xclbin_file_path.stdout.decode(
+            'utf8').strip().replace('./xclbin/', '')
+        # generate AFI and aws binary.
+        task.run(
+            ['sh', '-c', 'cur=`pwd`; cd $AWS_FPGA_REPO_DIR ; \
+            source ./sdaccel_setup.sh > /dev/null; cd $cur/xclbin; \
+            $SDACCEL_DIR/tools/create_sdaccel_afi.sh \
+    	    -xclbin={} \
+            -s3_bucket={} \
+            -s3_dcp_key={} \
+            -s3_logs_key={}'.format(xclbin_file, config['S3_BUCKET'],
+                                 config['S3_DCP'], config['S3_LOG'])],
+            cwd=CODE_DIR
+        )
+        # loops every 5 minutes to check if the AFI is ready.
+        while True:
+            time.sleep(300)
+            afi_id_file = task.run(
+                ['sh', '-c', 'cat ./xclbin/*afi_id.txt'],
+                cwd=CODE_DIR,
+                capture=True
+            )
+            afi_json = json.loads(afi_id_file.stdout.decode('utf8').strip())
+            afi_id = afi_json['FpgaImageId']
+            status_string = task.run(
+                ['sh', '-c',
+                    'aws ec2 describe-fpga-images \
+                     --fpga-image-ids {}'.format(afi_id)],
+                cwd=CODE_DIR,
+                capture=True
+            )
+            status_json = json.loads(
+                status_string.stdout.decode('utf8').strip())
+            # when the afi becomes available, exit the loop and enter
+            # execution stage.
+            if status_json['FpgaImages'][0]['State']['Code'] == 'available':
+                break
+
+
 def stage_fpga_execute(db, config):
     """Work stage: upload bitstream to the FPGA controller, run the
     program, and output the results.
-
     This stage currently assumes we want to execute on a Xilinx Zynq
     board, which is accessible via SSH. We require `sshpass` to provide
     the password for the board (because the OS that comes with ZedBoards
@@ -386,10 +467,23 @@ def stage_fpga_execute(db, config):
     """
     with work(db, state.HLS_FINISH, state.RUN, state.DONE) as task:
         # Do nothing in this stage if we're just running estimation.
-        if task['config'].get('estimate'):
+        if task['config'].get('estimate') or task['config'].get('skipexec'):
             task.log('skipping FPGA execution stage')
             return
-
+        # If configured to AFI, run seperate execution commands
+        if config['TOOLCHAIN'] == 'f1':
+            if task['target'] == 'hw':
+                exe_cmd = ['sudo', 'sh', '-c',
+                           'source /opt/xilinx/xrt/setup.sh ; ./host']
+            else:
+                exe_cmd = ['sh', '-c', 'cur=`pwd`; cd $AWS_FPGA_REPO_DIR ;\
+                source ./sdaccel_setup.sh > /dev/null; \
+                cd $cur; XCL_EMULATION_MODE={} ./host'.format(task['target'])]
+            task.run(
+                exe_cmd,
+                cwd=CODE_DIR
+            )
+            return
         # Copy the compiled code (CPU binary + FPGA bitstream) to the
         # Zynq board.
         bin_dir = os.path.join(task.code_dir, 'sd_card')
@@ -421,6 +515,7 @@ def work_threads(db, config):
     """Get a list of (unstarted) Thread objects for processing tasks.
     """
     out = []
-    for stage in (stage_unpack, stage_make):
+    for stage in (stage_unpack, stage_make, stage_seashell,
+                  stage_hls, stage_afi, stage_fpga_execute):
         out.append(WorkThread(db, config, stage))
     return out
